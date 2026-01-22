@@ -1,0 +1,28 @@
+
+name: Mirror to Personal Repo
+
+on:
+  push:
+    branches:
+      - '**'    # fire on every push to every branch
+
+jobs:
+  mirror:
+    # only run in the org repo
+    if: ${{ github.repository == 'amrood-labs/unilearn-landing' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout org repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Mirror to personal repo
+        env:
+          FG_PAT: ${{ secrets.PERSONAL_MIRROR_PAT }}
+        run: |
+          git remote add personal \
+            https://${FG_PAT}@github.com/asimsikka/unilearn-landing.git
+          git push personal --mirror
