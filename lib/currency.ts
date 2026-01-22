@@ -13,6 +13,26 @@ type Rates = Record<string, number>;
 const ER_API = "https://api.exchangeratesapi.io/v1/latest"; // docs endpoint
 const HOST_API = "https://api.exchangerate.host/latest";     // fallback (no key)
 
+const HARDCODED_FALLBACK_RATES: Rates = {
+  USD: 1,
+  CNY: 7.25,
+  HKD: 7.83,
+  TWD: 31.5,
+  PKR: 278.5,
+  INR: 83.2,
+  JPY: 149.5,
+  KRW: 1340,
+  SGD: 1.35,
+  PHP: 56.5,
+  THB: 34.8,
+  VND: 24500,
+  MYR: 4.48,
+  EUR: 0.92,
+  GBP: 0.79,
+  NZD: 1.67,
+  AUD: 1.54,
+};
+
 /** tiny helper: fetch JSON with timeout + retries */
 async function fetchJson(url: string, opts: { timeoutMs?: number; init?: RequestInit; retries?: number } = {}) {
   const { timeoutMs = 10_000, init, retries = 1 } = opts;
@@ -89,14 +109,27 @@ async function fetchUsdRates(symbols: readonly string[]): Promise<Rates> {
     return await fetchRatesFromExchangeratesApi(symbols);
   } catch (e) {
     console.warn("[FX][server] Primary provider failed, falling back:", e);
-    return await fetchRatesFromHost(symbols);
+    try {
+      return await fetchRatesFromHost(symbols);
+    } catch (e2) {
+      console.warn("[FX][server] Fallback provider also failed, using hardcoded rates:", e2);
+      const out: Rates = { USD: 1 };
+      for (const cur of symbols) {
+        if (cur === "USD") continue;
+        const rate = HARDCODED_FALLBACK_RATES[cur];
+        if (typeof rate === "number") {
+          out[cur] = rate;
+        }
+      }
+      return out;
+    }
   }
 }
 
 export const getUsdRatesCached = unstable_cache(
   async () => {
     const rates = await fetchUsdRates(CURRENCIES);
-    return { USD: 1, ...rates };
+    return { USD: 1, ...rates } as Rates;
   },
   ["usd-rates-v2"], // bump key since logic changed
   { revalidate: 60 * 60 * 12 }

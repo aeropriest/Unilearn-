@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { getMarketingPrices } from "@/lib/currency";
 
+export const dynamic = 'force-dynamic';
 export const revalidate = 43200;
 
 export async function GET() {
